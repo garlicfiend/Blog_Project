@@ -9,15 +9,15 @@ from flask_login import UserMixin, login_user, LoginManager, login_required, cur
 from forms import CreatePostForm, RegisterForm, LoginForm, CommentForm
 from flask_gravatar import Gravatar
 from functools import wraps
-
+import os
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = '8BYkEfBA6O6donzWlSihBXox7C0sKR6b'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 ckeditor = CKEditor(app)
 Bootstrap(app)
 
 ##CONNECT TO DB
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///blog.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///blog.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
@@ -75,6 +75,10 @@ class BlogPost(db.Model):
 
 db.create_all()
 
+admin_created = False
+
+if User.query.filter_by(account_type='admin').first():
+    admin_created = True
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -113,6 +117,8 @@ def register():
                 email=form.email.data,
                 password=generate_password_hash(form.password.data)
             )
+            if not admin_created:
+                new_user.account_type = 'admin'
             db.session.add(new_user)
             db.session.commit()
             return redirect(url_for('get_all_posts'))
